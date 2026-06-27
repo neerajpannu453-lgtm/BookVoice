@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BookVoice</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0f0f0f; color: #e8e8e8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: #161616; border-bottom: 0.5px solid #2a2a2a; position: sticky; top: 0; z-index: 10; }
+.topbar-title { font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+.topbar-sub { font-size: 12px; color: #555; margin-top: 2px; }
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 32px; text-align: center; }
+.empty-icon { width: 72px; height: 72px; background: #1e1e1e; border-radius: 18px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; border: 0.5px solid #2a2a2a; }
+.empty-icon svg { width: 32px; height: 32px; stroke: #555; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.empty-title { font-size: 17px; font-weight: 500; color: #ccc; margin-bottom: 8px; }
+.empty-desc { font-size: 14px; color: #555; line-height: 1.6; max-width: 240px; }
+.doc-list { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.section-label { font-size: 11px; font-weight: 600; color: #444; text-transform: uppercase; letter-spacing: 0.8px; padding: 16px 4px 8px; }
+.doc-card { background: #1a1a1a; border-radius: 12px; border: 0.5px solid #2a2a2a; padding: 14px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: background 0.15s; }
+.doc-card:hover { background: #222; border-color: #3a3a3a; }
+.doc-card.active { background: #1a2030; border-color: #4f8ef7; }
+.doc-icon { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.doc-icon.pdf { background: #2a1a1a; }
+.doc-icon.pdf svg { stroke: #e05a5a; }
+.doc-icon.docx { background: #1a1e2a; }
+.doc-icon.docx svg { stroke: #4f8ef7; }
+.doc-icon.txt { background: #1a2a1a; }
+.doc-icon.txt svg { stroke: #5abf7a; }
+.doc-icon svg { width: 20px; height: 20px; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.doc-info { flex: 1; min-width: 0; }
+.doc-name { font-size: 14px; font-weight: 500; color: #e0e0e0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.doc-meta { font-size: 12px; color: #555; margin-top: 2px; }
+.doc-del { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #333; transition: color 0.15s, background 0.15s; }
+.doc-del:hover { color: #e05a5a; background: #2a1a1a; }
+.doc-del svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+.reader-panel { display: none; flex-direction: column; height: 100vh; }
+.reader-panel.visible { display: flex; }
+.reader-topbar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #161616; border-bottom: 0.5px solid #2a2a2a; }
+.back-btn { width: 34px; height: 34px; border-radius: 8px; background: #222; border: 0.5px solid #2a2a2a; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+.back-btn svg { width: 16px; height: 16px; fill: none; stroke: #999; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.reader-title { font-size: 14px; font-weight: 500; color: #bbb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.reader-content { flex: 1; overflow-y: auto; padding: 20px 18px 100px; line-height: 1.9; font-size: 15px; color: #ccc; scrollbar-width: thin; scrollbar-color: #333 transparent; }
+.reader-content .highlight { background: #1e3a6a; border-radius: 3px; padding: 1px 3px; color: #90b8f8; }
+.player { background: #161616; border-top: 0.5px solid #2a2a2a; padding: 14px 20px 18px; }
+.player-info { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.player-name { font-size: 13px; font-weight: 500; color: #bbb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+.player-status { font-size: 11px; color: #555; }
+.player-status.reading { color: #4f8ef7; }
+.progress-wrap { margin-bottom: 14px; }
+.progress-bar { height: 4px; background: #252525; border-radius: 2px; cursor: pointer; position: relative; }
+.progress-fill { height: 100%; background: #4f8ef7; border-radius: 2px; transition: width 0.2s; pointer-events: none; }
+.player-controls { display: flex; align-items: center; justify-content: center; gap: 28px; }
+.ctrl-btn { width: 38px; height: 38px; border-radius: 50%; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #666; transition: color 0.15s; }
+.ctrl-btn:hover { color: #bbb; }
+.ctrl-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.play-btn { width: 52px; height: 52px; border-radius: 50%; background: #4f8ef7; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s, transform 0.1s; }
+.play-btn:hover { background: #6aa3f9; }
+.play-btn:active { transform: scale(0.95); }
+.play-btn svg { width: 24px; height: 24px; }
+.speed-btn { font-size: 12px; font-weight: 700; color: #555; background: #1e1e1e; border: 0.5px solid #2a2a2a; border-radius: 6px; padding: 5px 10px; cursor: pointer; transition: color 0.15s, border-color 0.15s; }
+.speed-btn:hover { color: #ccc; border-color: #444; }
+.fab { position: fixed; bottom: 28px; right: 22px; width: 54px; height: 54px; border-radius: 50%; background: #4f8ef7; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 24px rgba(79,142,247,0.4); transition: transform 0.15s, background 0.15s; z-index: 30; }
+.fab:hover { background: #6aa3f9; transform: scale(1.06); }
+.fab:active { transform: scale(0.95); }
+.fab svg { width: 26px; height: 26px; fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; }
+#file-input { display: none; }
+.home-view { display: block; }
+.home-view.hidden { display: none; }
+.toast { position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%); background: #222; border: 0.5px solid #333; color: #ccc; font-size: 13px; padding: 10px 18px; border-radius: 10px; z-index: 50; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="home-view" class="home-view">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">BookVoice</div>
+      <div class="topbar-sub">Your reading library</div>
+    </div>
+  </div>
+  <div id="empty-state" class="empty-state">
+    <div class="empty-icon">
+      <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+    </div>
+    <div class="empty-title">No documents yet</div>
+    <div class="empty-desc">Tap the + button to import a PDF, DOCX, or TXT file</div>
+  </div>
+  <div id="doc-list" class="doc-list" style="display:none;"></div>
+</div>
+
+<div id="reader-view" class="reader-panel">
+  <div class="reader-topbar">
+    <div class="back-btn" onclick="closeReader()">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    </div>
+    <div class="reader-title" id="reader-title">Document</div>
+  </div>
+  <div class="reader-content" id="reader-content"></div>
+  <div class="player">
+    <div class="player-info">
+      <div class="player-name" id="player-name">—</div>
+      <div class="player-status" id="player-status">Ready</div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-bar" id="progress-bar" onclick="seekProgress(event)">
+        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+    <div class="player-controls">
+      <button class="ctrl-btn" onclick="skipBack()" title="Back 10 sentences">
+        <svg viewBox="0 0 24 24"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+      </button>
+      <button class="play-btn" id="play-btn" onclick="togglePlay()">
+        <svg id="play-icon" viewBox="0 0 24 24" fill="#fff"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </button>
+      <button class="ctrl-btn" onclick="skipForward()" title="Forward 10 sentences">
+        <svg viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-.49-3.5"/></svg>
+      </button>
+      <button class="speed-btn" id="speed-btn" onclick="cycleSpeed()">1×</button>
+    </div>
+  </div>
+</div>
+
+<label class="fab" for="file-input" title="Import document">
+  <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</label>
+<input type="file" id="file-input" accept=".pdf,.docx,.txt,.doc" onchange="handleFileImport(event)">
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+const pdfjsLib = window['pdfjs-dist/build/pdf'];
+if (pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let docs = [];
+let currentDoc = null;
+let isPlaying = false;
+let speed = 1;
+let sentences = [];
+let currentSentenceIdx = 0;
+let speedIdx = 1;
+const speeds = [0.75, 1, 1.25, 1.5, 2];
+
+try { docs = JSON.parse(localStorage.getItem('bookvoice_docs') || '[]'); } catch(e) { docs = []; }
+
+function saveDocs() { try { localStorage.setItem('bookvoice_docs', JSON.stringify(docs)); } catch(e) {} }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function renderDocList() {
+  const list = document.getElementById('doc-list');
+  const empty = document.getElementById('empty-state');
+  if (!docs.length) { empty.style.display = ''; list.style.display = 'none'; return; }
+  empty.style.display = 'none';
+  list.style.display = '';
+  list.innerHTML = '<div class="section-label">Your documents</div>' + docs.map((d, i) => {
+    const t = d.type || 'txt';
+    const icons = {
+      pdf: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/>',
+      docx: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/>',
+      txt: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>'
+    };
+    return `<div class="doc-card${currentDoc && currentDoc.id===d.id?' active':''}" onclick="openDoc(${i})">
+      <div class="doc-icon ${t}"><svg viewBox="0 0 24 24">${icons[t]||icons.txt}</svg></div>
+      <div class="doc-info">
+        <div class="doc-name">${d.name}</div>
+        <div class="doc-meta">${(t).toUpperCase()} · ${d.size}</div>
+      </div>
+      <div class="doc-del" onclick="event.stopPropagation();deleteDoc(${i})" title="Delete">
+        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function deleteDoc(idx) {
+  stopTTS();
+  docs.splice(idx, 1);
+  saveDocs();
+  renderDocList();
+  showToast('Document removed');
+}
+
+async function handleFileImport(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = '';
+  const name = file.name;
+  const ext = name.split('.').pop().toLowerCase();
+  const size = file.size < 1024*1024 ? Math.round(file.size/1024)+'KB' : (file.size/1024/1024).toFixed(1)+'MB';
+  showToast('Importing ' + name + '…');
+  let text = '';
+  try {
+    if (ext === 'txt') { text = await file.text(); }
+    else if (ext === 'pdf') { text = await extractPDF(file); }
+    else if (ext === 'docx' || ext === 'doc') { text = await extractDOCX(file); }
+    else { text = await file.text(); }
+  } catch(err) { text = 'Could not extract text from this file. Try saving it as a .txt file.'; }
+  if (!text.trim()) text = 'No readable text found in this document.';
+  const type = ext === 'pdf' ? 'pdf' : (ext === 'docx' || ext === 'doc') ? 'docx' : 'txt';
+  const doc = { id: Date.now(), name, type, size, text };
+  docs.unshift(doc);
+  saveDocs();
+  renderDocList();
+  showToast('Imported successfully');
+  openDoc(0);
+}
+
+async function extractPDF(file) {
+  if (!pdfjsLib) return 'PDF.js failed to load. Try a .txt file instead.';
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let out = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    out += content.items.map(item => item.str).join(' ') + '\n\n';
+  }
+  return out;
+}
+
+async function extractDOCX(file) {
+  const buf = await file.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  const str = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+  const matches = str.match(/<w:t[^>]*>([^<]*)<\/w:t>/g);
+  if (matches && matches.length > 5) {
+    return matches.map(m => m.replace(/<[^>]+>/g, '')).join(' ').replace(/\s+/g, ' ').trim();
+  }
+  const clean = str.replace(/<[^>]+>/g, ' ').replace(/[^\x20-\x7E\n]/g, '').replace(/\s+/g, ' ').trim();
+  return clean.length > 100 ? clean : 'Could not read this DOCX. Try saving as .txt first.';
+}
+
+function openDoc(idx) {
+  stopTTS();
+  currentDoc = docs[idx];
+  document.getElementById('home-view').classList.add('hidden');
+  document.getElementById('reader-view').classList.add('visible');
+  document.getElementById('reader-title').textContent = currentDoc.name;
+  document.getElementById('player-name').textContent = currentDoc.name;
+  document.getElementById('player-status').textContent = 'Ready';
+  document.getElementById('player-status').className = 'player-status';
+  sentences = currentDoc.text.match(/[^.!?\n]+[.!?\n]+/g) || currentDoc.text.split('\n').filter(l => l.trim());
+  sentences = sentences.map(s => s.trim()).filter(s => s.length > 3);
+  if (!sentences.length) sentences = [currentDoc.text];
+  currentSentenceIdx = 0;
+  renderContent();
+  updateProgress(0);
+  renderDocList();
+}
+
+function renderContent() {
+  const el = document.getElementById('reader-content');
+  el.innerHTML = sentences.map((s, i) => `<span id="s${i}" style="display:inline">${s} </span>`).join('');
+}
+
+function closeReader() {
+  stopTTS();
+  document.getElementById('reader-view').classList.remove('visible');
+  document.getElementById('home-view').classList.remove('hidden');
+  currentDoc = null;
+  renderDocList();
+}
+
+function togglePlay() {
+  if (isPlaying) pauseTTS(); else startTTS();
+}
+
+function startTTS() {
+  if (!currentDoc || !sentences.length) return;
+  if (!('speechSynthesis' in window)) { showToast('TTS not supported. Use Chrome.'); return; }
+  isPlaying = true;
+  updatePlayBtn(true);
+  document.getElementById('player-status').textContent = 'Reading…';
+  document.getElementById('player-status').className = 'player-status reading';
+  speakFrom(currentSentenceIdx);
+}
+
+function speakFrom(idx) {
+  if (!isPlaying || idx >= sentences.length) { if (idx >= sentences.length) stopTTS(); return; }
+  currentSentenceIdx = idx;
+  highlightSentence(idx);
+  updateProgress((idx / sentences.length) * 100);
+  const u = new SpeechSynthesisUtterance(sentences[idx]);
+  u.rate = speed; u.pitch = 1; u.lang = 'en-US';
+  u.onend = () => { if (isPlaying) speakFrom(idx + 1); };
+  u.onerror = () => { if (isPlaying) speakFrom(idx + 1); };
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(u);
+}
+
+function pauseTTS() {
+  isPlaying = false;
+  window.speechSynthesis.cancel();
+  updatePlayBtn(false);
+  document.getElementById('player-status').textContent = 'Paused';
+  document.getElementById('player-status').className = 'player-status';
+}
+
+function stopTTS() {
+  isPlaying = false;
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  updatePlayBtn(false);
+  const s = document.getElementById('player-status');
+  if (s) { s.textContent = 'Ready'; s.className = 'player-status'; }
+  removeHighlight();
+  updateProgress(0);
+  currentSentenceIdx = 0;
+}
+
+function skipBack() {
+  const was = isPlaying;
+  window.speechSynthesis.cancel();
+  currentSentenceIdx = Math.max(0, currentSentenceIdx - 10);
+  if (was) speakFrom(currentSentenceIdx);
+  else { highlightSentence(currentSentenceIdx); updateProgress((currentSentenceIdx/sentences.length)*100); }
+}
+
+function skipForward() {
+  const was = isPlaying;
+  window.speechSynthesis.cancel();
+  currentSentenceIdx = Math.min(sentences.length - 1, currentSentenceIdx + 10);
+  if (was) speakFrom(currentSentenceIdx);
+  else { highlightSentence(currentSentenceIdx); updateProgress((currentSentenceIdx/sentences.length)*100); }
+}
+
+function cycleSpeed() {
+  speedIdx = (speedIdx + 1) % speeds.length;
+  speed = speeds[speedIdx];
+  document.getElementById('speed-btn').textContent = speed + '×';
+  if (isPlaying) { window.speechSynthesis.cancel(); speakFrom(currentSentenceIdx); }
+  showToast('Speed: ' + speed + '×');
+}
+
+function seekProgress(e) {
+  if (!sentences.length) return;
+  const ratio = e.offsetX / e.currentTarget.offsetWidth;
+  const idx = Math.floor(ratio * sentences.length);
+  const was = isPlaying;
+  window.speechSynthesis.cancel();
+  currentSentenceIdx = Math.max(0, Math.min(sentences.length-1, idx));
+  if (was) speakFrom(currentSentenceIdx);
+  else { highlightSentence(currentSentenceIdx); updateProgress(ratio*100); }
+}
+
+function highlightSentence(idx) {
+  removeHighlight();
+  const el = document.getElementById('s' + idx);
+  if (el) { el.classList.add('highlight'); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+}
+
+function removeHighlight() { document.querySelectorAll('.highlight').forEach(e => e.classList.remove('highlight')); }
+function updateProgress(pct) { document.getElementById('progress-fill').style.width = Math.min(100,pct)+'%'; }
+function updatePlayBtn(playing) {
+  document.getElementById('play-icon').innerHTML = playing
+    ? '<rect x="6" y="4" width="4" height="16" fill="#fff"/><rect x="14" y="4" width="4" height="16" fill="#fff"/>'
+    : '<polygon points="5 3 19 12 5 21 5 3" fill="#fff"/>';
+}
+
+renderDocList();
+</script>
+</body>
+</html>
